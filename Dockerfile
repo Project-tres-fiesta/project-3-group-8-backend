@@ -1,29 +1,29 @@
 # syntax=docker/dockerfile:1
 
 # ---- Build stage ----
-FROM eclipse-temurin:21-jdk AS build
+FROM eclipse-temurin:17-jdk AS build
 WORKDIR /workspace
 
-# copy gradle wrapper + build files first to leverage Docker cache
+# Copy Gradle wrapper & config first to leverage Docker cache
 COPY gradlew gradlew.bat settings.gradle build.gradle ./
 COPY gradle gradle
 RUN chmod +x gradlew
 
-# copy source
+# Copy source
 COPY src src
 
-# build the fat jar
+# Build fat jar (Spring Boot)
 RUN ./gradlew bootJar --no-daemon
 
 # ---- Runtime stage ----
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:17-jre
 WORKDIR /app
 
-# (optional) JVM opts hook
+# Optional JVM options (can be overridden in Heroku config vars)
 ENV JAVA_OPTS=""
 
-# copy jar from build stage
-COPY --from=build /workspace/build/libs/*.jar app.jar
+# Copy the jar produced above (you set it to app.jar in build.gradle)
+COPY --from=build /workspace/build/libs/app.jar app.jar
 
-# Heroku provides $PORT; bind Spring to it
+# Heroku sets $PORT; expose and run the jar on that port
 CMD ["sh", "-c", "java $JAVA_OPTS -Dserver.port=$PORT -jar app.jar"]
