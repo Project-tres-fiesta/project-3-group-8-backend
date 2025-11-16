@@ -1,62 +1,54 @@
 package com.example.EventLink.config;
 
-import com.example.EventLink.security.JwtAuthenticationFilter;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
-import java.util.List;
+import com.example.EventLink.security.JwtAuthenticationFilter;
 
 @Configuration
-@EnableWebSecurity
 public class SecurityConfig {
 
-    // Comma-separated list; override in env with APP_CORS_ALLOWED_ORIGINS
-    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:19006}")
-    private String allowedOrigins;
+  private final CorsConfigurationSource corsSource;
+  private final JwtAuthenticationFilter jwtFilter;
 
-    @Bean
-SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-  return http
+  public SecurityConfig(CorsConfigurationSource corsSource, JwtAuthenticationFilter jwtFilter) {
+    this.corsSource = corsSource;
+    this.jwtFilter = jwtFilter;
+  }
+
+  @Bean
+  SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    return http
       .csrf(csrf -> csrf.disable())
-      .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+      .cors(cors -> cors.configurationSource(corsSource))
       .authorizeHttpRequests(auth -> {
         auth.requestMatchers(
-            "/",
-            "/test-db",
-            "/actuator/health"
+            "/", "/test-db", "/actuator/health",
+            // OAuth login endpoints for browser flow
+            "/oauth2/**", "/login/**"
         ).permitAll();
+
+        // Public-ish auth helper endpoints (token mint needs you to be logged in via OAuth session)
+        auth.requestMatchers("/api/auth/validate", "/api/auth/user").permitAll();
+        auth.requestMatchers("/api/auth/token").authenticated();
+
+        // CORS preflight
         auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+
+        // Everything else needs either a session (OAuth) or a valid Bearer token
         auth.anyRequest().authenticated();
       })
-      // 👇 return 401 for APIs instead of 302 redirect
-      //Commented out to test routes with oauth login
-      //.exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-      .oauth2Login(oauth -> {}) // withDefaults()
+      .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+      .oauth2Login(oauth -> {}) // keep Google OAuth for browser
+      .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
       .build();
+  }
 }
 
-    @Bean
-    CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration cfg = new CorsConfiguration();
-        List<String> origins = Arrays.asList(allowedOrigins.split(","));
-        cfg.setAllowedOrigins(origins);
-        cfg.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        cfg.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "Origin",
-                "Access-Control-Request-Method", "Access-Control-Request-Headers"));
-        cfg.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", cfg);
-        return source;
-    }
-}
