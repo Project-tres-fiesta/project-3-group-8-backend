@@ -3,8 +3,7 @@ package com.example.EventLink.friendship;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,47 +35,42 @@ public class FriendshipController {
         this.currentUser = currentUser;
     }
 
-    /** Send a friend request to body.toUserId on behalf of the logged-in user. */
+    /** ✅ Send friend request as the authenticated user */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public FriendshipDto send(
-            @AuthenticationPrincipal OAuth2User principal,
-            @Valid @RequestBody FriendRequestCreate body) {
-
-        Integer requesterId = currentUser.currentUserId(principal);
+    public FriendshipDto send(Authentication auth, @Valid @RequestBody FriendRequestCreate body) {
+        Integer requesterId = currentUser.userIdFromAuth(auth);
         return service.sendRequest(requesterId, body);
     }
 
-    /** Accept or reject a request (PUT is fine too). Only the recipient may decide. */
-    
-  @PutMapping("/{id}") // was PATCH – PUT is fine for “decide”
-  public FriendshipDto decide(@AuthenticationPrincipal OAuth2User principal,
-                              @PathVariable("id") Integer friendshipId,
-                              @Valid @RequestBody FriendRequestDecision body) {
-    Integer actingUserId = currentUser.currentUserId(principal);
-    return service.decide(actingUserId, friendshipId, body);
-  }
+    /** ✅ Accept or reject a friend request */
+    @PutMapping("/{id}")
+    public FriendshipDto decide(Authentication auth,
+                                @PathVariable("id") Integer friendshipId,
+                                @Valid @RequestBody FriendRequestDecision body) {
+        Integer actingUserId = currentUser.userIdFromAuth(auth);
+        return service.decide(actingUserId, friendshipId, body);
+    }
 
-    /** All relations involving the logged-in user. */
+    /** ✅ List all friendships for the current user */
     @GetMapping
-    public List<FriendshipDto> list(@AuthenticationPrincipal OAuth2User principal) {
-        Integer userId = currentUser.currentUserId(principal);
+    public List<FriendshipDto> list(Authentication auth) {
+        Integer userId = currentUser.userIdFromAuth(auth);
         return service.listForUser(userId);
     }
 
-    /** Pending requests where the logged-in user is the recipient. */
+    /** ✅ List pending friendship requests for the current user */
     @GetMapping("/pending")
-    public List<FriendshipDto> pending(@AuthenticationPrincipal OAuth2User principal) {
-        Integer userId = currentUser.currentUserId(principal);
+    public List<FriendshipDto> pending(Authentication auth) {
+        Integer userId = currentUser.userIdFromAuth(auth);
         return service.pendingForUser(userId);
     }
 
+    /** ✅ Delete friendship */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(
-            @PathVariable("id") Integer friendshipId,
-            @AuthenticationPrincipal OAuth2User principal) {
-        Integer userId = currentUser.currentUserId(principal);
+    public void delete(@PathVariable("id") Integer friendshipId, Authentication auth) {
+        Integer userId = currentUser.userIdFromAuth(auth);
         service.delete(friendshipId, userId);
     }
 }
