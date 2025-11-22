@@ -1,22 +1,22 @@
 package com.example.EventLink.service;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.Date;
-
 @Service
 public class JwtService {
 
-    @Value("${jwt.secret.key:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}")
+    @Value("${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}")
     private String secretKey;
 
-    @Value("${jwt.expiration.time:86400000}") // 24 hours in milliseconds
+    @Value("${JWT_EXPIRATION:86400000}")
     private long jwtExpiration;
 
     /**
