@@ -32,7 +32,9 @@ public class SecurityConfig {
         auth.requestMatchers(
             "/", "/test-db", "/actuator/health",
             // OAuth login endpoints for browser flow
-            "/oauth2/**", "/login/**"
+            "/oauth2/**", "/login/**",
+            // Public events endpoints
+            "/api/events/**"
         ).permitAll();
 
         // Public-ish auth helper endpoints (token mint needs you to be logged in via OAuth session)
