@@ -11,26 +11,42 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtFilter;
+  private final CorsConfigurationSource corsSource;
+  private final JwtAuthenticationFilter jwtFilter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtFilter) {
-        this.jwtFilter = jwtFilter;
-    }
+  public SecurityConfig(CorsConfigurationSource corsSource, JwtAuthenticationFilter jwtFilter) {
+    this.corsSource = corsSource;
+    this.jwtFilter = jwtFilter;
+  }
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(csrf -> csrf.disable())
-                .cors(cors -> {}) // enable CORS
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/oauth2/**").permitAll()
-                        .requestMatchers("/api/users/profile").authenticated()
-                        .anyRequest().permitAll()
-                )
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+  @Bean
+  SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    return http
+      .csrf(csrf -> csrf.disable())
+      .cors(cors -> cors.configurationSource(corsSource))
+      .authorizeHttpRequests(auth -> {
+        auth.requestMatchers(
+            "/", "/test-db", "/actuator/health",
+            // OAuth login endpoints for browser flow
+            "/oauth2/**", "/login/**",
+            // Public events endpoints
+            "/api/events/**"
+        ).permitAll();
 
-        return http.build();
-    }
+        // Public-ish auth helper endpoints (token mint needs you to be logged in via OAuth session)
+        auth.requestMatchers("/api/auth/validate", "/api/auth/user").permitAll();
+        auth.requestMatchers("/api/auth/token").authenticated();
+
+        // CORS preflight
+        auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+
+        // Everything else needs either a session (OAuth) or a valid Bearer token
+        auth.anyRequest().authenticated();
+      })
+      .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+      .oauth2Login(oauth -> {}) // keep Google OAuth for browser
+      .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+      .build();
+  }
 }
 
