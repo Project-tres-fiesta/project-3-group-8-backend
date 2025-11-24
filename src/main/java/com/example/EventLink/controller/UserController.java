@@ -4,8 +4,9 @@ import com.example.EventLink.entity.UserEntity;
 import com.example.EventLink.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -77,5 +78,29 @@ public class UserController {
     public ResponseEntity<List<UserEntity>> getAllUsers() {
         List<UserEntity> users = userRepository.findAll();
         return ResponseEntity.ok(users); // 200 OK
+    }
+
+    @DeleteMapping("/account")
+    public ResponseEntity<Void> deleteUserAccount(@AuthenticationPrincipal OAuth2User oauthUser) {
+        if (oauthUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String email = oauthUser.getAttribute("email");
+        if (email == null) {
+            // Try GitHub alternative
+            email = (String) oauthUser.getAttribute("login") + "@github.com"; // fallback
+        }
+
+        // Find the user by email
+        UserEntity user = userRepository.findByUserEmail(email).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        // Delete the user account
+        userRepository.delete(user);
+        
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 }

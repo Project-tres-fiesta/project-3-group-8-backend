@@ -50,6 +50,9 @@ public class UserControllerTest {
               .andExpect(jsonPath("$[0].userName", is("testuser")))
               .andExpect(jsonPath("$[0].userEmail", is("testuser@example.com")));
     }
+
+    // Note: DELETE /api/users/account endpoint requires OAuth2 authentication
+    // Integration tests with proper security context would be needed for full testing
 }
 
 
