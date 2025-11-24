@@ -1,17 +1,20 @@
 package com.example.EventLink.controller;
 
-import com.example.EventLink.entity.UserEntity;
-import com.example.EventLink.repository.UserRepository;
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.core.user.OAuth2User;  // 👈 missing
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;  // 👈 missing
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import com.example.EventLink.entity.UserEntity;
+import com.example.EventLink.repository.UserRepository;
 
 @RestController
 @RequestMapping("/api/users")
