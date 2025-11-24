@@ -18,6 +18,15 @@ public class UserEntity {  // matches file name
     @Column(name = "profile_picture", nullable = false)
     private String profilePicture;
 
+    public UserEntity() {
+    }
+
+    public UserEntity(String userName, String userEmail) {
+        this.userName = userName;
+        this.userEmail = userEmail;
+    }
+
+
     public String getProfilePicture() {
         return profilePicture;
     }
