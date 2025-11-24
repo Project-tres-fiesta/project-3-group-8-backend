@@ -16,13 +16,13 @@ import java.util.Map;
 @CrossOrigin(origins = "http://localhost:8081")
 public class GoogleAuthController {
 
-    @Value("967418967875-344no5lg4i3pbnhkrntic8i4tqhhbt0v.apps.googleusercontent.com")
+    @Value("${google.client.id}")
     private String clientId;
 
-    @Value("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")
+    @Value("${google.client.secret}")
     private String clientSecret;
 
-    @Value("http://localhost:8081")
+    @Value("${google.redirect.uri}")
     private String redirectUri;
 
     private final JwtService jwtService;
