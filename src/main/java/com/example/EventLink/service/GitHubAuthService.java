@@ -128,9 +128,9 @@ import java.util.Map;
 @Service
 public class GitHubAuthService {
 
-    private final String clientId = "Ov23lihT7okuvIR1spoy";
-    private final String clientSecret = "8004c1bf0092d695b545ba3068fad58a32f701b0";
-    private final String redirectUri = "http://localhost:8081/HomePage";
+    private final String clientId = "${GITHUB_CLIENT_ID}";
+    private final String clientSecret = "${GITHUB_CLIENT_SECRET}";
+    private final String redirectUri = "${GITHUB_REDIRECT_URI}";
 
     private final RestTemplate restTemplate = new RestTemplate();
 

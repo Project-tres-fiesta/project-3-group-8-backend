@@ -18,13 +18,13 @@ import java.util.Map;
 @CrossOrigin(origins = "http://localhost:8081")
 public class GithubAuthController {
 
-    @Value("Ov23lihT7okuvIR1spoy")
+    @Value("${GITHUB_CLIENT_ID}")
     private String clientId;
 
-    @Value("8004c1bf0092d695b545ba3068fad58a32f701b0")
+    @Value("${GITHUB_CLIENT_SECRET}")
     private String clientSecret;
 
-    @Value("http://localhost:8081/HomePage")
+    @Value("${GITHUB_REDIRECT_URI}")
     private String redirectUri;
 
     private final JwtService jwtService;
