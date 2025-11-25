@@ -32,24 +32,22 @@ public class SecurityConfig {
       .authorizeHttpRequests(auth -> {
         auth.requestMatchers(
             "/", "/test-db", "/actuator/health",
-            // OAuth login endpoints for browser flow
             "/oauth2/**", "/login/**",
-            // Public events endpoints
             "/api/events/**"
         ).permitAll();
 
-        // Public-ish auth helper endpoints (token mint needs you to be logged in via OAuth session)
+        // 👇 TEMPORARY: make GET /api/users public so frontend can load data
+        auth.requestMatchers(HttpMethod.GET, "/api/users/**").permitAll();
+
         auth.requestMatchers("/api/auth/validate", "/api/auth/user").permitAll();
         auth.requestMatchers("/api/auth/token").authenticated();
 
-        // CORS preflight
         auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
 
-        // Everything else needs either a session (OAuth) or a valid Bearer token
         auth.anyRequest().authenticated();
       })
       .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-      .oauth2Login(oauth -> {}) // keep Google OAuth for browser
+      .oauth2Login(oauth -> {})
       .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
       .build();
   }
