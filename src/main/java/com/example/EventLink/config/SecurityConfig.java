@@ -24,32 +24,34 @@ public class SecurityConfig {
     this.jwtFilter = jwtFilter;
   }
 
-  @Bean
-  SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    return http
-      .csrf(csrf -> csrf.disable())
-      .cors(cors -> cors.configurationSource(corsSource))
-      .authorizeHttpRequests(auth -> {
-        auth.requestMatchers(
-            "/", "/test-db", "/actuator/health",
-            "/oauth2/**", "/login/**",
-            "/api/events/**"
-        ).permitAll();
+  // SecurityConfig.java
+@Bean
+SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+  return http
+    .csrf(csrf -> csrf.disable())
+    .cors(cors -> cors.configurationSource(corsSource))
+    .authorizeHttpRequests(auth -> {
+      auth.requestMatchers(
+          "/", "/test-db", "/actuator/health",
+          "/oauth2/**", "/login/**",
+          "/api/events/**"
+      ).permitAll();
 
-        // 👇 TEMPORARY: make GET /api/users public so frontend can load data
-        auth.requestMatchers(HttpMethod.GET, "/api/users/**").permitAll();
+      // Public GET for users (for listing)
+      auth.requestMatchers(HttpMethod.GET, "/api/users/**").permitAll();
 
-        auth.requestMatchers("/api/auth/validate", "/api/auth/user").permitAll();
-        auth.requestMatchers("/api/auth/token").authenticated();
+      auth.requestMatchers("/api/auth/validate", "/api/auth/user").permitAll();
+      auth.requestMatchers("/api/auth/token").authenticated();
 
-        auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+      auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
 
-        auth.anyRequest().authenticated();
-      })
-      .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-      .oauth2Login(oauth -> {})
-      .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-      .build();
-  }
+      auth.anyRequest().authenticated();
+    })
+    .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+    .oauth2Login(oauth -> {})
+    .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+    .build();
+}
+
 }
 
