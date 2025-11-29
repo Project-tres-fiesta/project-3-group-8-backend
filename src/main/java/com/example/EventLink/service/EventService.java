@@ -149,4 +149,11 @@ public class EventService {
                 .map(this::saveFromTicketmasterEvent)
                 .toList();
     }
+    
+    /**
+     * Save an event entity directly (for manual event creation)
+     */
+    public EventEntity saveEvent(EventEntity event) {
+        return eventRepository.save(event);
+    }
 }

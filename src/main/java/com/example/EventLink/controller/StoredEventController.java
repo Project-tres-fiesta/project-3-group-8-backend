@@ -154,6 +154,62 @@ public class StoredEventController {
     }
 
     /**
+     * Create a new test event (for testing purposes)
+     */
+    @PostMapping
+    public ResponseEntity<Map<String, Object>> createTestEvent(@RequestBody Map<String, Object> eventData) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            EventEntity event = new EventEntity();
+            event.setExternalEventId("test-" + System.currentTimeMillis());
+            event.setExternalSource("manual");
+            event.setTitle((String) eventData.getOrDefault("title", "Test Event"));
+            event.setDescription((String) eventData.get("description"));
+            event.setVenueName((String) eventData.getOrDefault("venueName", "Test Venue"));
+            event.setVenueCity((String) eventData.getOrDefault("venueCity", "Test City"));
+            event.setVenueState((String) eventData.getOrDefault("venueState", "PA"));
+            event.setVenueCountry((String) eventData.getOrDefault("venueCountry", "USA"));
+            event.setCategory((String) eventData.getOrDefault("category", "Music"));
+            event.setGenre((String) eventData.get("genre"));
+            event.setImageUrl((String) eventData.get("imageUrl"));
+            event.setEventUrl((String) eventData.get("eventUrl"));
+            event.setCurrency((String) eventData.getOrDefault("currency", "USD"));
+            
+            // Parse date if provided
+            if (eventData.get("eventDate") != null) {
+                event.setEventDate(java.time.LocalDate.parse((String) eventData.get("eventDate")));
+            }
+            
+            // Parse time if provided
+            if (eventData.get("eventTime") != null) {
+                event.setEventTime(java.time.LocalTime.parse((String) eventData.get("eventTime")));
+            }
+            
+            // Parse prices if provided
+            if (eventData.get("minPrice") != null) {
+                event.setMinPrice(new java.math.BigDecimal(eventData.get("minPrice").toString()));
+            }
+            
+            if (eventData.get("maxPrice") != null) {
+                event.setMaxPrice(new java.math.BigDecimal(eventData.get("maxPrice").toString()));
+            }
+            
+            EventEntity savedEvent = eventService.saveEvent(event);
+            
+            response.put("success", true);
+            response.put("message", "Event created successfully");
+            response.put("event", savedEvent);
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
      * Delete stored event by ID
      */
     @DeleteMapping("/{id}")
