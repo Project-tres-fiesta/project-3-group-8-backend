@@ -1,4 +1,4 @@
-//package com.example.EventLink.service;
+package com.example.EventLink.service;//package com.example.EventLink.service;
 //
 //import com.example.EventLink.entity.UserEntity;
 //import com.example.EventLink.repository.UserRepository;
@@ -114,3 +114,68 @@
 //                .compact();
 //    }
 //}
+
+
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.Map;
+
+
+@Service
+public class GitHubAuthService {
+
+    private final String clientId = "${GITHUB_CLIENT_ID}";
+    private final String clientSecret = "${GITHUB_CLIENT_SECRET}";
+    private final String redirectUri = "${GITHUB_REDIRECT_URI}";
+
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    public Map<String, Object> exchangeCodeForTokens(String code) {
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        //params.add("code", code);
+        params.add("client_id", clientId);
+        params.add("client_secret", clientSecret);
+        params.add("code", code);
+        params.add("redirect_uri", redirectUri);
+        //params.add("grant_type", "authorization_code");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                "https://github.com/login/oauth/access_token", request, Map.class);
+
+        return response.getBody();
+    }
+
+    public Map<String, Object> getUserInfo(String accessToken) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "https://api.github.com/user",
+                HttpMethod.GET, entity, Map.class);
+
+        return response.getBody();
+    }
+
+    public Map<String, Object> getUserEmail(String accessToken) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "https://api.github.com/user/emails",
+                HttpMethod.GET, entity, Map.class);
+
+        return response.getBody();
+    }
+
+
+}
