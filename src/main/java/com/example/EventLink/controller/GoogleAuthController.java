@@ -1,19 +1,32 @@
 package com.example.EventLink.controller;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
-import com.example.EventLink.service.JwtService;
-
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
+
+import com.example.EventLink.service.JwtService;
+
 @RestController
 @RequestMapping("/oauth2")
-@CrossOrigin(origins = "http://localhost:8081")
+@CrossOrigin(origins = {
+        "http://localhost:8081",
+        "https://group8-frontend-7f72234233d0.herokuapp.com"
+})
 public class GoogleAuthController {
 
     @Value("${google.client.id}")
@@ -37,7 +50,7 @@ public class GoogleAuthController {
         String codeVerifier = body.get("codeVerifier"); // PKCE verifier from frontend
         if (code == null) return ResponseEntity.badRequest().build();
 
-        // 1️⃣ Exchange code for tokens
+        // --- 1️⃣ Exchange code for tokens ---
         RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -48,19 +61,29 @@ public class GoogleAuthController {
         params.add("client_secret", clientSecret);
         params.add("redirect_uri", redirectUri);
         params.add("grant_type", "authorization_code");
-        params.add("code_verifier", codeVerifier); // <-- PKCE verifier included
+        params.add("code_verifier", codeVerifier);
 
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
+
         Map<String, Object> tokenResponse = restTemplate.postForObject(
-                "https://oauth2.googleapis.com/token", request, Map.class);
+                "https://oauth2.googleapis.com/token",
+                request,
+                Map.class
+        );
+
+        // 🔍 DEBUG PRINT — helps diagnose redirect_uri issues
+        System.out.println("Google tokenResponse = " + tokenResponse);
 
         if (tokenResponse == null || !tokenResponse.containsKey("access_token")) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "token_exchange_failed");
+            error.put("details", tokenResponse);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
         }
 
         String accessToken = (String) tokenResponse.get("access_token");
 
-        // 2️⃣ Fetch Google user info
+        // --- 2️⃣ Fetch Google user info ---
         HttpHeaders userHeaders = new HttpHeaders();
         userHeaders.setBearerAuth(accessToken);
 
@@ -73,7 +96,7 @@ public class GoogleAuthController {
 
         Map<String, Object> googleUser = userResponse.getBody();
 
-        // Extract user fields
+        // --- User fields ---
         String email = (String) googleUser.get("email");
         if (email == null || email.isEmpty()) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -83,7 +106,7 @@ public class GoogleAuthController {
         String name = (String) googleUser.get("name");
         String picture = (String) googleUser.get("picture");
 
-        // 3️⃣ Generate YOUR backend JWT
+        // --- 3️⃣ Generate backend JWT ---
         String token;
         try {
             token = jwtService.generateToken(email);
@@ -93,7 +116,7 @@ public class GoogleAuthController {
                     .body(Map.of("error", "Failed to generate JWT"));
         }
 
-        // 4️⃣ Build response for frontend
+        // --- 4️⃣ Return JWT + user info ---
         Map<String, Object> response = new HashMap<>();
         response.put("token", token);
 
