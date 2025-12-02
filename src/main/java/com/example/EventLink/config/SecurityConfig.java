@@ -12,46 +12,66 @@ import org.springframework.web.cors.CorsConfigurationSource;
 
 import com.example.EventLink.security.JwtAuthenticationFilter;
 
-
 @Configuration
 public class SecurityConfig {
 
-  private final CorsConfigurationSource corsSource;
-  private final JwtAuthenticationFilter jwtFilter;
+    private final CorsConfigurationSource corsSource;
+    private final JwtAuthenticationFilter jwtFilter;
 
-  public SecurityConfig(CorsConfigurationSource corsSource, JwtAuthenticationFilter jwtFilter) {
-    this.corsSource = corsSource;
-    this.jwtFilter = jwtFilter;
-  }
+    public SecurityConfig(CorsConfigurationSource corsSource,
+                          JwtAuthenticationFilter jwtFilter) {
+        this.corsSource = corsSource;
+        this.jwtFilter = jwtFilter;
+    }
 
-  // SecurityConfig.java
-@Bean
-SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-  return http
-    .csrf(csrf -> csrf.disable())
-    .cors(cors -> cors.configurationSource(corsSource))
-    .authorizeHttpRequests(auth -> {
-      auth.requestMatchers(
-          "/", "/test-db", "/actuator/health",
-          "/oauth2/**", "/login/**",
-          "/api/events/**"
-      ).permitAll();
+    @Bean
+    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        return http
+            // We’re using JWT + our own Google flow, no CSRF tokens
+            .csrf(csrf -> csrf.disable())
+            .cors(cors -> cors.configurationSource(corsSource))
 
-      // Public GET for users (for listing)
-      auth.requestMatchers(HttpMethod.GET, "/api/users/**").permitAll();
+            .authorizeHttpRequests(auth -> {
+                // Completely public endpoints (any method)
+                auth.requestMatchers(
+                    "/",
+                    "/error",                 // <= avoid huge stack traces
+                    "/test-db",
+                    "/actuator/health",
+                    "/oauth2/**",            // <= Google callback + any OAuth helper routes
+                    "/login/**",
+                    "/api/events/**"
+                ).permitAll();
 
-      auth.requestMatchers("/api/auth/validate", "/api/auth/user").permitAll();
-      auth.requestMatchers("/api/auth/token").authenticated();
+                // Public GET for users list / profile lookup
+                auth.requestMatchers(HttpMethod.GET, "/api/users/**").permitAll();
 
-      auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+                // Auth-related helpers
+                auth.requestMatchers(
+                    "/api/auth/validate",
+                    "/api/auth/user"
+                ).permitAll();
 
-      auth.anyRequest().authenticated();
-    })
-    .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-    .oauth2Login(oauth -> {})
-    .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-    .build();
+                // This one MUST be authenticated (using JWT)
+                auth.requestMatchers("/api/auth/token").authenticated();
+
+                // Preflight CORS
+                auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+
+                // Everything else requires JWT
+                auth.anyRequest().authenticated();
+            })
+
+            .exceptionHandling(e ->
+                e.authenticationEntryPoint(
+                    new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)
+                )
+            )
+            .oauth2Login(oauth -> {})
+
+            // Our JWT filter runs before UsernamePasswordAuthenticationFilter
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+
+            .build();
+    }
 }
-
-}
-
