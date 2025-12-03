@@ -34,7 +34,7 @@ SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
       auth.requestMatchers(
           "/", "/test-db", "/actuator/health",
           "/oauth2/**", "/login/**",
-          "/api/events/**"
+          "/api/events/**", "/api/ticketmaster/**", "/api/events/stored/**", "/api/user-events/**"
       ).permitAll();
 
       // Public GET for users (for listing)
