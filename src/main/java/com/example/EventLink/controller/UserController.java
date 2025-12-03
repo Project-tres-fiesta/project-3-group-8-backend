@@ -18,7 +18,10 @@ import com.example.EventLink.repository.UserRepository;
 
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(origins = "http://localhost:8081")
+@CrossOrigin(origins = {
+    "http://localhost:8081",
+    "https://group8-frontend-7f72234233d0.herokuapp.com"
+})
 public class UserController {
 
     private final UserRepository userRepository;
