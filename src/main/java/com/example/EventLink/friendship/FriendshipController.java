@@ -1,6 +1,8 @@
 package com.example.EventLink.friendship;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -15,9 +17,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.EventLink.entity.UserEntity;
+import com.example.EventLink.friendship.Friendship.Status;
 import com.example.EventLink.friendship.dto.FriendRequestCreate;
 import com.example.EventLink.friendship.dto.FriendRequestDecision;
 import com.example.EventLink.friendship.dto.FriendshipDto;
+import com.example.EventLink.repository.UserRepository;
 import com.example.EventLink.security.CurrentUserService;
 
 import jakarta.validation.Valid;
@@ -29,13 +34,17 @@ public class FriendshipController {
 
     private final FriendshipService service;
     private final CurrentUserService currentUser;
+    private final UserRepository userRepository;
 
-    public FriendshipController(FriendshipService service, CurrentUserService currentUser) {
+    public FriendshipController(FriendshipService service,
+                                CurrentUserService currentUser,
+                                UserRepository userRepository) {
         this.service = service;
         this.currentUser = currentUser;
+        this.userRepository = userRepository;
     }
 
-    /** ✅ Send friend request as the authenticated user */
+    /**  Send friend request as the authenticated user */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public FriendshipDto send(Authentication auth, @Valid @RequestBody FriendRequestCreate body) {
@@ -43,7 +52,7 @@ public class FriendshipController {
         return service.sendRequest(requesterId, body);
     }
 
-    /** ✅ Accept or reject a friend request */
+    /**  Accept or reject a friend request */
     @PutMapping("/{id}")
     public FriendshipDto decide(Authentication auth,
                                 @PathVariable("id") Integer friendshipId,
@@ -52,27 +61,47 @@ public class FriendshipController {
         return service.decide(actingUserId, friendshipId, body);
     }
 
-    /** ✅ List all friendships for the current user */
+    /**  List all friendships for the current user */
     @GetMapping
     public List<FriendshipDto> list(Authentication auth) {
         Integer userId = currentUser.userIdFromAuth(auth);
         return service.listForUser(userId);
     }
 
-    /** ✅ List pending friendship requests for the current user */
+    /**  List pending friendship requests for the current user */
     @GetMapping("/pending")
     public List<FriendshipDto> pending(Authentication auth) {
         Integer userId = currentUser.userIdFromAuth(auth);
         return service.pendingForUser(userId);
     }
 
-    /** ✅ Delete friendship */
+    /**  Delete friendship */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable("id") Integer friendshipId, Authentication auth) {
         Integer userId = currentUser.userIdFromAuth(auth);
         service.delete(friendshipId, userId);
     }
-}
 
+    //  Return UserEntity list for friends
+    @GetMapping("/friends-users")
+    public List<UserEntity> listFriendUsers(Authentication auth) {
+        Integer userId = currentUser.userIdFromAuth(auth);
+
+        List<FriendshipDto> friendships = service.listForUser(userId);
+
+        Set<Long> friendIds = friendships.stream()
+                .filter(f -> f.status() == Status.accepted) 
+                .map(f -> {
+                    if (userId.equals(f.user1Id())) {
+                     return f.user2Id().longValue();
+                    } else {
+                       return f.user1Id().longValue();
+                    }
+                })
+                .collect(Collectors.toSet());
+
+        return userRepository.findAllById(friendIds);
+    }
+}
 
