@@ -1,20 +1,15 @@
 package com.example.EventLink.controller;
 
-import java.util.List;
-
+import com.example.EventLink.entity.UserEntity;
+import com.example.EventLink.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.core.user.OAuth2User;  // 👈 missing
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;  // 👈 missing
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.web.bind.annotation.*;
 
-import com.example.EventLink.entity.UserEntity;
-import com.example.EventLink.repository.UserRepository;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
@@ -84,6 +79,14 @@ public class UserController {
     public ResponseEntity<List<UserEntity>> getAllUsers() {
         List<UserEntity> users = userRepository.findAll();
         return ResponseEntity.ok(users); // 200 OK
+    }
+
+    // GET user info by userId
+    @GetMapping("/{userId}")
+    public ResponseEntity<UserEntity> getUserById(@PathVariable Long userId) {
+        return userRepository.findById(userId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/account")
