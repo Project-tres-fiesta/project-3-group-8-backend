@@ -4,10 +4,9 @@ import com.example.EventLink.entity.GroupsEntity;
 import com.example.EventLink.repository.GroupsRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/groups")
@@ -22,5 +21,10 @@ public class GroupsController {
         GroupsEntity savedGroup = groupsRepository.save(group);
 
         return ResponseEntity.ok(savedGroup);
+    }
+
+    @GetMapping
+    public List<GroupsEntity> getAllGroups() {
+        return groupsRepository.findAll();
     }
 }
