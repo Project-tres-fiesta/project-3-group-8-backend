@@ -15,7 +15,10 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/oauth2")
-@CrossOrigin(origins = "http://localhost:8081")
+@CrossOrigin(origins = {
+    "http://localhost:8081",
+    "https://group8-frontend-7f72234233d0.herokuapp.com"
+})
 public class GithubAuthController {
 
     @Value("${github.client.id}")
