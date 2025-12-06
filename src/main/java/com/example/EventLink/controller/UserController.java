@@ -1,15 +1,19 @@
 package com.example.EventLink.controller;
 
-import com.example.EventLink.entity.UserEntity;
-import com.example.EventLink.repository.UserRepository;
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import com.example.EventLink.entity.UserEntity;
+import com.example.EventLink.repository.UserRepository;
 
 @RestController
 @RequestMapping("/api/users")
@@ -89,16 +93,16 @@ public class UserController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @DeleteMapping("/account")
-    public ResponseEntity<Void> deleteUserAccount(@AuthenticationPrincipal OAuth2User oauthUser) {
-        if (oauthUser == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+       @DeleteMapping("/account")
+    public ResponseEntity<Void> deleteUserAccount() {
 
-        String email = oauthUser.getAttribute("email");
+        // Extract email from SecurityContext 
+        String email = (String) SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getPrincipal();
+
         if (email == null) {
-            // Try GitHub alternative
-            email = (String) oauthUser.getAttribute("login") + "@github.com"; // fallback
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
         // Find the user by email
@@ -107,9 +111,8 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
-        // Delete the user account
         userRepository.delete(user);
-        
+
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 }
