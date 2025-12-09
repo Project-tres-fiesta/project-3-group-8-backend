@@ -1,0 +1,8 @@
+{
+  "setupFilesAfterEnv": ["./init.js"],
+  "testEnvironment": "./environment",
+  "verbose": true,
+  "testTimeout": 120000,
+  "testRegex": "\\.e2e\\.(js|ts)$",
+  "reporters": ["detox/runners/jest/streamlineReporter"]
+}
