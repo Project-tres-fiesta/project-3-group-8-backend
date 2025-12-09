@@ -42,3 +42,7 @@ out/
 # Gradle
 .gradle/
 build/
+# Node
+node_modules/
+e2e/chrome-user-data/
+playwright-user-data/
