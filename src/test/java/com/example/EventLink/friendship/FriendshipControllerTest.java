@@ -63,18 +63,18 @@ class FriendshipControllerTest {
         currentUser = mock(CurrentUserService.class);
         userRepository = mock(UserRepository.class);
 
-        // ✅ Match your new FriendshipController constructor
+        //  Match FriendshipController constructor
         FriendshipController controller =
                 new FriendshipController(service, currentUser, userRepository);
 
-        // Fake Authentication object that will be injected into the controller
+        // Fake Authentication object 
         Authentication fakeAuth = mock(Authentication.class);
 
         mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setCustomArgumentResolvers(new DummyAuthResolver(fakeAuth))
                 .build();
 
-        // ✅ Match the method used in the controller: userIdFromAuth(auth)
+        // Match the method used in the controller
         when(currentUser.userIdFromAuth(fakeAuth)).thenReturn(1);
     }
 
