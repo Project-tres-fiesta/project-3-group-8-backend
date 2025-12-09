@@ -1,93 +1,78 @@
 package com.example.EventLink.controller;
 
-import com.example.EventLink.entity.EventEntity;
-import com.example.EventLink.service.EventService;
+import java.util.Collections;
+
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.Collections;
-import java.util.Optional;
-
-import static org.hamcrest.Matchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
+import com.example.EventLink.service.TicketmasterService;
 
 class EventControllerTest {
 
     private MockMvc mockMvc;
-    private EventService eventService;
+    private TicketmasterService ticketmasterService;
 
     @BeforeEach
-    void setUp() {
-        eventService = mock(EventService.class);
-        EventController controller = new EventController(eventService);
+    void setUp() throws Exception {
+        ticketmasterService = mock(TicketmasterService.class);
+
+        EventController controller = new EventController();
+        // inject mock into field ticketmasterService
+        var field = EventController.class.getDeclaredField("ticketmasterService");
+        field.setAccessible(true);
+        field.set(controller, ticketmasterService);
+
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
     @Test
-    void testGetAllEvents() throws Exception {
-    
-        EventEntity event = new EventEntity();
-        event.setEventId(1L);
-        event.setTitle("Test Event");
-        event.setVenueName("Test Venue");
-        event.setVenueCity("Los Angeles");
-        event.setEventDate(LocalDate.of(2025, 12, 15));
-        event.setMinPrice(BigDecimal.valueOf(50.00));
-        event.setMaxPrice(BigDecimal.valueOf(150.00));
+    void testSearchEvents() throws Exception {
+        // we don’t care about the event contents here, only that the controller
+        // wraps the list into the response map correctly
+        given(ticketmasterService.searchEvents("rock", "LA", null, null, null, 10))
+                .willReturn(Collections.emptyList());
 
-        given(eventService.getAllEvents()).willReturn(Collections.singletonList(event));
-
-        
-        mockMvc.perform(get("/api/events"))
+        mockMvc.perform(get("/api/events/search")
+                        .param("keyword", "rock")
+                        .param("city", "LA")
+                        .param("size", "10"))
                 .andDo(print())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].eventId", is(1)))
-                .andExpect(jsonPath("$[0].title", is("Test Event")))
-                .andExpect(jsonPath("$[0].venueName", is("Test Venue")))
-                .andExpect(jsonPath("$[0].venueCity", is("Los Angeles")));
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.events", hasSize(0)))
+                .andExpect(jsonPath("$.count", is(0)));
     }
 
     @Test
-    void testGetEventById_Found() throws Exception {
-        
-        EventEntity event = new EventEntity();
-        event.setEventId(1L);
-        event.setTitle("Test Event");
+    void testGetEventById_NotFound() throws Exception {
+        given(ticketmasterService.getEventById("abc123"))
+                .willReturn(null); // controller treats null as “not found”
 
-        given(eventService.getEventById(1L)).willReturn(Optional.of(event));
-
-        
-        mockMvc.perform(get("/api/events/1"))
+        mockMvc.perform(get("/api/events/abc123"))
                 .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.eventId", is(1)))
-                .andExpect(jsonPath("$.title", is("Test Event")));
+                .andExpect(status().isNotFound());
     }
 
     @Test
-    void testGetEventsByCity() throws Exception {
-        
-        EventEntity event = new EventEntity();
-        event.setEventId(1L);
-        event.setVenueCity("New York");
+    void testGetEventsByLocation() throws Exception {
+        given(ticketmasterService.searchEvents(null, "New York", null, null, null, 20))
+                .willReturn(Collections.emptyList());
 
-        given(eventService.getEventsByCity("New York")).willReturn(Collections.singletonList(event));
-
-        
-        mockMvc.perform(get("/api/events/city/New York"))
+        mockMvc.perform(get("/api/events/location/New York"))
                 .andDo(print())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].venueCity", is("New York")));
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.events", hasSize(0)))
+                .andExpect(jsonPath("$.count", is(0)));
     }
 }

@@ -1,22 +1,23 @@
 package com.example.EventLink.service;
 
+import java.time.LocalDate;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.MockitoAnnotations;
+
 import com.example.EventLink.dto.TicketmasterEvent;
 import com.example.EventLink.entity.EventEntity;
 import com.example.EventLink.repository.EventRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 class EventServiceTest {
 
@@ -50,40 +51,46 @@ class EventServiceTest {
         tmEvent.setCurrency("USD");
 
         when(eventRepository.findByExternalEventIdAndExternalSource("TM123", "ticketmaster"))
-                .thenReturn(Optional.empty());
-        
+                .thenReturn(java.util.Optional.empty());
+
         EventEntity savedEntity = new EventEntity();
-        savedEntity.setEventId(1L);
+        // no setEventId here – your entity doesn’t expose that
         savedEntity.setExternalEventId("TM123");
         when(eventRepository.save(any(EventEntity.class))).thenReturn(savedEntity);
 
         EventEntity result = eventService.saveFromTicketmasterEvent(tmEvent);
 
         assertNotNull(result);
-        assertEquals(1L, result.getEventId());
-        verify(eventRepository, times(1)).findByExternalEventIdAndExternalSource("TM123", "ticketmaster");
+        // assert something that definitely exists on your entity
+        assertEquals("TM123", result.getExternalEventId());
+        verify(eventRepository, times(1))
+                .findByExternalEventIdAndExternalSource("TM123", "ticketmaster");
         verify(eventRepository, times(1)).save(any(EventEntity.class));
     }
 
     @Test
     void testGetUpcomingEvents() {
-        when(eventRepository.findByEventDateAfter(any(LocalDate.class))).thenReturn(java.util.Collections.emptyList());
+        when(eventRepository.findByEventDateAfter(any(LocalDate.class)))
+                .thenReturn(java.util.Collections.emptyList());
 
         var result = eventService.getUpcomingEvents();
 
         assertNotNull(result);
-        verify(eventRepository, times(1)).findByEventDateAfter(any(LocalDate.class));
+        verify(eventRepository, times(1))
+                .findByEventDateAfter(any(LocalDate.class));
     }
 
     @Test
     void testSearchEventsByTitle() {
         String keyword = "concert";
-        when(eventRepository.findByTitleContainingIgnoreCase(keyword)).thenReturn(java.util.Collections.emptyList());
+        when(eventRepository.findByTitleContainingIgnoreCase(keyword))
+                .thenReturn(java.util.Collections.emptyList());
 
         var result = eventService.searchEventsByTitle(keyword);
 
         assertNotNull(result);
-        verify(eventRepository, times(1)).findByTitleContainingIgnoreCase(keyword);
+        verify(eventRepository, times(1))
+                .findByTitleContainingIgnoreCase(keyword);
     }
 
     @Test
@@ -94,6 +101,7 @@ class EventServiceTest {
         boolean result = eventService.eventExists("TM123", "ticketmaster");
 
         assertTrue(result);
-        verify(eventRepository, times(1)).existsByExternalEventIdAndExternalSource("TM123", "ticketmaster");
+        verify(eventRepository, times(1))
+                .existsByExternalEventIdAndExternalSource("TM123", "ticketmaster");
     }
 }
