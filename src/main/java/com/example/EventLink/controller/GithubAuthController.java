@@ -1,5 +1,7 @@
 package com.example.EventLink.controller;
 
+import com.example.EventLink.entity.UserEntity;
+import com.example.EventLink.repository.UserRepository;
 import com.example.EventLink.service.JwtService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
@@ -31,9 +33,12 @@ public class GithubAuthController {
     private String redirectUri;
 
     private final JwtService jwtService;
+    private final UserRepository userRepository;   // ✅ NEW
 
-    public GithubAuthController(JwtService jwtService) {
+    public GithubAuthController(JwtService jwtService,
+                                UserRepository userRepository) { // ✅ inject repo
         this.jwtService = jwtService;
+        this.userRepository = userRepository;
     }
 
     @PostMapping("/callbackGithub")
@@ -42,23 +47,24 @@ public class GithubAuthController {
         String codeVerifier = body.get("codeVerifier"); // PKCE verifier from frontend
         if (code == null) return ResponseEntity.badRequest().build();
 
-        // 1️⃣ Exchange code for tokens
+        // 1️⃣ Exchange code for access token
         RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        //params.add("code", code);
         params.add("client_id", clientId);
         params.add("client_secret", clientSecret);
         params.add("code", code);
         params.add("redirect_uri", redirectUri);
-        //params.add("grant_type", "authorization_code");
-        params.add("code_verifier", codeVerifier); // <-- PKCE verifier included
+        params.add("code_verifier", codeVerifier);
 
-        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
+        HttpEntity<MultiValueMap<String, String>> request =
+                new HttpEntity<>(params, headers);
+
         Map<String, Object> tokenResponse = restTemplate.postForObject(
-                "https://github.com/login/oauth/access_token", request, Map.class);
+                "https://github.com/login/oauth/access_token", request, Map.class
+        );
 
         if (tokenResponse == null || !tokenResponse.containsKey("access_token")) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -66,7 +72,7 @@ public class GithubAuthController {
 
         String accessToken = (String) tokenResponse.get("access_token");
 
-        // 2️⃣ Fetch Google user info
+        // 2️⃣ Fetch GitHub user info
         HttpHeaders userHeaders = new HttpHeaders();
         userHeaders.setBearerAuth(accessToken);
 
@@ -84,7 +90,6 @@ public class GithubAuthController {
                 new ParameterizedTypeReference<List<Map<String, Object>>>() {}
         );
 
-
         Map<String, Object> githubUser = userResponse.getBody();
         List<Map<String, Object>> githubEmail = userEmail.getBody();
 
@@ -93,7 +98,6 @@ public class GithubAuthController {
                     .body(Map.of("error", "No emails returned by GitHub"));
         }
 
-
         // Extract user fields
         String email = (String) githubEmail.stream()
                 .filter(e -> Boolean.TRUE.equals(e.get("primary")))
@@ -101,21 +105,30 @@ public class GithubAuthController {
                 .findFirst()
                 .orElse(null);
 
-
         String name = (String) githubUser.get("login");
         String picture = (String) githubUser.get("avatar_url");
 
-        // 3️⃣ Generate YOUR backend JWT
+        // 3️⃣ Look up (or create) the user in your DB
+        UserEntity user = userRepository.findByUserEmail(email)
+                .orElseGet(() -> {
+                    UserEntity u = new UserEntity();
+                    u.setUserEmail(email);
+                    u.setUserName(name);
+                    u.setProfilePicture(picture);
+                    return userRepository.save(u);
+                });
+
+        // 4️⃣ Generate JWT with **userId** as subject (matches AuthController)
         String token;
         try {
-            token = jwtService.generateToken(email);
+            token = jwtService.generateToken(String.valueOf(user.getUserId()));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to generate JWT"));
         }
 
-        // 4️⃣ Build response for frontend
+        // 5️⃣ Build response for frontend
         Map<String, Object> response = new HashMap<>();
         response.put("token", token);
 
@@ -129,4 +142,3 @@ public class GithubAuthController {
         return ResponseEntity.ok(response);
     }
 }
-
