@@ -4,12 +4,11 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.core.user.OAuth2User;  // 👈 missing
 import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;  // 👈 missing
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,7 +17,10 @@ import com.example.EventLink.repository.UserRepository;
 
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(origins = "http://localhost:8081")
+@CrossOrigin(origins = {
+    "http://localhost:8081",
+    "https://group8-frontend-7f72234233d0.herokuapp.com"
+})
 public class UserController {
 
     private final UserRepository userRepository;
@@ -83,16 +85,24 @@ public class UserController {
         return ResponseEntity.ok(users); // 200 OK
     }
 
-    @DeleteMapping("/account")
-    public ResponseEntity<Void> deleteUserAccount(@AuthenticationPrincipal OAuth2User oauthUser) {
-        if (oauthUser == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+    // GET user info by userId
+    @GetMapping("/{userId}")
+    public ResponseEntity<UserEntity> getUserById(@PathVariable Long userId) {
+        return userRepository.findById(userId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
 
-        String email = oauthUser.getAttribute("email");
+       @DeleteMapping("/account")
+    public ResponseEntity<Void> deleteUserAccount() {
+
+        // Extract email from SecurityContext 
+        String email = (String) SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getPrincipal();
+
         if (email == null) {
-            // Try GitHub alternative
-            email = (String) oauthUser.getAttribute("login") + "@github.com"; // fallback
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
         // Find the user by email
@@ -101,9 +111,8 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
-        // Delete the user account
         userRepository.delete(user);
-        
+
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 }

@@ -1,19 +1,34 @@
 package com.example.EventLink.controller;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
-import com.example.EventLink.service.JwtService;
-
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
+
+import com.example.EventLink.entity.UserEntity;
+import com.example.EventLink.repository.UserRepository;
+import com.example.EventLink.service.JwtService;
+
 @RestController
 @RequestMapping("/oauth2")
-@CrossOrigin(origins = "http://localhost:8081")
+@CrossOrigin(origins = {
+        "http://localhost:8081",
+        "https://group8-frontend-7f72234233d0.herokuapp.com"
+})
 public class GoogleAuthController {
 
     @Value("${google.client.id}")
@@ -27,14 +42,25 @@ public class GoogleAuthController {
 
     private final JwtService jwtService;
 
-    public GoogleAuthController(JwtService jwtService) {
+    // 🔽 NEW FIELD
+    private final UserRepository userRepository;
+
+    // 🔽 UPDATED CONSTRUCTOR (just added userRepository)
+    public GoogleAuthController(JwtService jwtService, UserRepository userRepository) {
         this.jwtService = jwtService;
+        this.userRepository = userRepository;
     }
 
     @PostMapping("/callback")
     public ResponseEntity<Map<String, Object>> callback(@RequestBody Map<String, String> body) {
         String code = body.get("code");
         String codeVerifier = body.get("codeVerifier"); // PKCE verifier from frontend
+
+        System.out.println(">>> /oauth2/callback called");
+        System.out.println("code        = " + code);
+        System.out.println("codeVerifier= " + codeVerifier);
+        System.out.println("redirectUri = " + redirectUri);
+
         if (code == null) return ResponseEntity.badRequest().build();
 
         // 1️⃣ Exchange code for tokens
@@ -50,12 +76,31 @@ public class GoogleAuthController {
         params.add("grant_type", "authorization_code");
         params.add("code_verifier", codeVerifier); // <-- PKCE verifier included
 
-        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
-        Map<String, Object> tokenResponse = restTemplate.postForObject(
-                "https://oauth2.googleapis.com/token", request, Map.class);
+        HttpEntity<MultiValueMap<String, String>> request =
+                new HttpEntity<>(params, headers);
+
+        Map<String, Object> tokenResponse;
+
+        try {
+            tokenResponse = restTemplate.postForObject(
+                    "https://oauth2.googleapis.com/token",
+                    request,
+                    Map.class
+            );
+            System.out.println("Google tokenResponse = " + tokenResponse);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "token_exchange_failed");
+            error.put("exception", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        }
 
         if (tokenResponse == null || !tokenResponse.containsKey("access_token")) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "token_exchange_failed");
+            error.put("details", tokenResponse);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
         }
 
         String accessToken = (String) tokenResponse.get("access_token");
@@ -73,7 +118,6 @@ public class GoogleAuthController {
 
         Map<String, Object> googleUser = userResponse.getBody();
 
-        // Extract user fields
         String email = (String) googleUser.get("email");
         if (email == null || email.isEmpty()) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -83,7 +127,31 @@ public class GoogleAuthController {
         String name = (String) googleUser.get("name");
         String picture = (String) googleUser.get("picture");
 
-        // 3️⃣ Generate YOUR backend JWT
+        // 🔽 NEW: upsert user in DB
+        UserEntity user = userRepository.findByUserEmail(email)
+                .orElseGet(() -> {
+                    UserEntity u = new UserEntity();
+                    u.setUserEmail(email);
+                    u.setUserName(name);
+                    u.setProfilePicture(picture);
+                    return userRepository.save(u);
+                });
+
+        // Optionally update existing user’s name/picture if they changed
+        boolean changed = false;
+        if (name != null && !name.equals(user.getUserName())) {
+            user.setUserName(name);
+            changed = true;
+        }
+        if (picture != null && !picture.equals(user.getProfilePicture())) {
+            user.setProfilePicture(picture);
+            changed = true;
+        }
+        if (changed) {
+            userRepository.save(user);
+        }
+
+        // 3️⃣ Generate YOUR backend JWT (unchanged)
         String token;
         try {
             token = jwtService.generateToken(email);
@@ -93,7 +161,7 @@ public class GoogleAuthController {
                     .body(Map.of("error", "Failed to generate JWT"));
         }
 
-        // 4️⃣ Build response for frontend
+        // 4️⃣ Build response for frontend (unchanged)
         Map<String, Object> response = new HashMap<>();
         response.put("token", token);
 
